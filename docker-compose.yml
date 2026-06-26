@@ -1,0 +1,14 @@
+services:
+  phonetic-atlas:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: phonetic-atlas
+    ports:
+      - "7842:7842"
+    volumes:
+      # Persist aligned sessions + HF model cache across container restarts
+      - ./data:/app/data
+      # Optional: edit/add samples without rebuilding
+      - ./samples:/app/samples
+    restart: unless-stopped

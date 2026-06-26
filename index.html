@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>phonetic-atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="frame">
+
+<header class="head">
+  <div class="brand">phonetic<span class="dot">·</span>atlas</div>
+  <div class="right">v1 · <span id="today"></span></div>
+</header>
+
+<p class="dek">
+  Word- and phoneme-level pronunciation drill. Two <b>IPA</b> layers — what the speaker actually said vs. the citation form — synced to every ~20ms of the recording. <b>MFA</b> for word alignment, <b>wav2vec2</b> for audio phonemes.
+</p>
+
+<!-- ── setup summary (shown in drill mode) ───────────────── -->
+<div class="setup-bar" id="setup-bar">
+  <span class="caret">▸</span>
+  <span class="title" id="setup-title">—</span>
+  <span class="meta" id="setup-meta"></span>
+  <span class="spacer"></span>
+  <button class="change-btn" id="change-btn" type="button">change</button>
+</div>
+
+<!-- ── samples ───────────────────────────────────────────── -->
+<section class="sec">
+  <div class="sec-head">
+    <h2>Samples</h2>
+    <span class="hint" id="samples-hint">click to load</span>
+  </div>
+  <div class="samples" id="samples"></div>
+</section>
+
+<!-- ── player ─────────────────────────────────────────────── -->
+<section class="player" id="player-wrap">
+  <div class="sec-head">
+    <h2>Specimen</h2>
+    <span class="hint">click a word or phoneme to drill</span>
+  </div>
+
+  <audio id="audio" controls preload="auto"></audio>
+
+  <div class="controls">
+    <label class="chip" id="chip-loop"><input type="checkbox" id="loopWord">loop</label>
+    <label class="chip on" id="chip-follow"><input type="checkbox" id="follow" checked>follow</label>
+    <label class="chip on" id="chip-ipa"><input type="checkbox" id="showIpa" checked>ipa</label>
+    <label class="chip on" id="chip-simple"><input type="checkbox" id="simpleIpa" checked>simplify</label>
+    <label class="chip" id="chip-canon"><input type="checkbox" id="showCanon">citation</label>
+    <label class="chip on" id="chip-tone"><input type="checkbox" id="showTone" checked>tone</label>
+    <label class="chip on" id="chip-pause"><input type="checkbox" id="showPause" checked>pause</label>
+    <label class="chip chip-cam-btn" id="chip-cam" title="Toggle camera self-view"><input type="checkbox" id="showCam"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>Camera</label>
+    <span class="chip divider"></span>
+    <span class="chip chip-rec" id="chip-rec" title="record (M) / play recording (P)">rec</span>
+    <span class="num-input">delay <input type="number" id="delay" min="0" max="5000" step="100" value="500"><span class="unit">ms</span></span>
+    <span class="num-input">reps <input type="number" id="repeats" min="0" max="50" step="1" value="0"></span>
+    <span class="speed-control">speed <input type="range" id="speed" min="0.5" max="1.5" step="0.05" value="1"><span class="val" id="speedVal">1.00×</span></span>
+    <span class="status-pill" id="status"></span>
+  </div>
+
+  <div id="transcript"></div>
+
+  <div class="legend">
+    <span><span class="swatch audio"></span>actual audio</span>
+    <span><span class="swatch canon"></span>citation form</span>
+  </div>
+
+  <details class="shortcuts">
+    <summary>Keyboard</summary>
+    <div class="grid">
+      <span><kbd>Space</kbd>play / pause</span>
+      <span><kbd>L</kbd>toggle loop</span>
+      <span><kbd>R</kbd>replay word</span>
+      <span><kbd>←</kbd><kbd>→</kbd>prev / next</span>
+      <span><kbd>↑</kbd><kbd>↓</kbd>speed ±0.05</span>
+      <span><kbd>[</kbd><kbd>]</kbd>delay ∓100ms</span>
+      <span><kbd>,</kbd><kbd>.</kbd>reps ∓1</span>
+      <span><kbd>Esc</kbd>deselect</span>
+      <span><kbd>M</kbd>start / stop recording</span>
+      <span><kbd>P</kbd>play recording</span>
+      <span><kbd>F</kbd>vim hints (jump by label)</span>
+      <span><kbd>C</kbd>play citation audio</span>
+      <span><kbd>D</kbd>toggle dictionary (Esc also closes)</span>
+    </div>
+  </details>
+</section>
+
+<footer>
+  <span>specimen player for spoken english</span>
+  <span><a href="https://github.com/thuanpham582002/phonetic-atlas">github</a></span>
+</footer>
+
+<!-- floating camera mirror (local-only self-view, shown when camera is on) -->
+<div class="cam-pip" id="cam-pip" hidden role="region" aria-label="Camera mirror">
+  <video id="cam-video" autoplay playsinline muted></video>
+  <select class="cam-device" id="cam-device" aria-label="Camera source"></select>
+  <span class="cam-live">● live · local only</span>
+  <button class="cam-close" id="cam-close" type="button" aria-label="Close camera">×</button>
+  <div class="cam-resize" id="cam-resize" aria-hidden="true"></div>
+</div>
+
+<!-- dictionary card (per-sample lexicon, selection-driven) -->
+<aside class="dict-card" id="dict-card" hidden role="complementary" aria-label="Dictionary — this sample">
+  <div class="dc-head"><span>DICTIONARY · this sample</span>
+    <button class="dc-close" id="dc-close" type="button" aria-label="Close dictionary">×</button></div>
+  <div class="dc-body" aria-live="polite">
+    <div class="dc-headword"><span class="dc-lemma" id="dc-lemma">—</span><span class="dc-pos" id="dc-pos" hidden></span></div>
+    <div class="dc-ja" id="dc-ja" hidden>
+      <ruby class="dc-furigana" id="dc-furigana"></ruby>
+      <div class="dc-ja-line"><span class="dc-lbl">romaji</span><span class="dc-romaji" id="dc-romaji">—</span></div>
+      <div class="dc-ja-line"><span class="dc-lbl">pitch</span><span class="dc-pitch" id="dc-pitch"></span></div>
+    </div>
+    <div class="dc-ipa">
+      <div><span class="dc-lbl">citation</span><span class="dc-ipa-cite" id="dc-cite">—</span><button class="dc-audio" id="dc-cite-audio" type="button" hidden aria-label="Play citation pronunciation" title="Play citation pronunciation">🔊</button></div>
+      <div class="dc-said-row" id="dc-said-row"><span class="dc-lbl">said here</span><span class="dc-ipa-said" id="dc-said">—</span><span class="dc-delta" id="dc-delta"></span></div>
+    </div>
+    <div class="dc-sense">
+      <div class="dc-gloss" id="dc-gloss" hidden></div>
+      <div class="dc-def" id="dc-def" hidden></div>
+      <div class="dc-defgloss" id="dc-defgloss" hidden></div>
+      <div class="dc-note" id="dc-note" hidden></div>
+    </div>
+    <div class="dc-occ">
+      <div class="dc-occ-head" id="dc-occ-count"></div>
+      <ul class="dc-occ-list" id="dc-occ-list" role="list"></ul>
+    </div>
+    <div class="dc-unenriched" id="dc-unenriched" hidden>not enriched</div>
+  </div>
+</aside>
+
+</div>
+
+<script type="module" src="/src/app.ts"></script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Teleprompter overlay — mockup</title>
+<style>
+  :root {
+    --bg-alpha: 0.78;
+    --bg: rgba(18, 18, 22, var(--bg-alpha));
+    --fg: #e8e8ea;
+    --dim: #6b6b73;
+    --hit: #ffd866;
+    --accent: #7aa2ff;
+    --ipa: #9ad1ff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+    background: #1d1f24;
+    height: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .overlay {
+    width: 760px;
+    background: var(--bg);
+    color: var(--fg);
+    border-radius: 14px;
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06);
+    padding: 14px 18px 12px;
+    user-select: none;
+    -webkit-app-region: drag;
+  }
+
+  .top {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11px; color: var(--dim);
+    margin-bottom: 10px;
+  }
+  .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ctrls { display: flex; gap: 4px; align-items: center; -webkit-app-region: no-drag; }
+  .ctrls button {
+    background: transparent; border: 1px solid rgba(255,255,255,0.12);
+    color: var(--fg); border-radius: 6px; padding: 2px 8px;
+    font-size: 11px; cursor: pointer;
+  }
+  .ctrls button.on { background: var(--accent); color: #0c1226; border-color: transparent; }
+  .ctrls button:hover { background: rgba(255,255,255,0.08); }
+
+  .alpha-wrap {
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 8px; border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+  }
+  .alpha-wrap label { font-size: 10px; color: var(--dim); letter-spacing: 0.3px; }
+  .alpha-wrap input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 80px; height: 3px; background: rgba(255,255,255,0.15);
+    border-radius: 2px; outline: none;
+  }
+  .alpha-wrap input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+    border: 2px solid #0c1226;
+  }
+
+  .lines {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .line {
+    color: var(--dim);
+    transition: color 180ms ease, opacity 180ms ease;
+    line-height: 1.1;
+  }
+  .line.prev { opacity: 0.5; font-size: 15px; }
+  .line.curr { color: var(--fg); font-size: 22px; }
+  .line.next { opacity: 0.55; font-size: 15px; }
+
+  .w {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 4px 1px;
+    border-radius: 5px;
+    vertical-align: top;
+    transition: background 80ms linear, color 80ms linear;
+  }
+  .w .txt { line-height: 1.15; }
+  .w .ipa {
+    font-family: "Charis SIL", "Doulos SIL", "Lucida Sans Unicode", serif;
+    font-size: 0.55em;
+    color: var(--ipa);
+    margin-top: 1px;
+    letter-spacing: 0.2px;
+    opacity: 0.9;
+  }
+  .line.prev .w .ipa, .line.next .w .ipa { display: none; } /* keep neighbour lines compact */
+  .line.curr .w.spoken { color: var(--dim); }
+  .line.curr .w.spoken .ipa { color: #4b6478; }
+  .line.curr .w.justspoken {
+    color: #b9b9c2;
+    background: rgba(122, 162, 255, 0.10);
+  }
+  .line.curr .w.justspoken .ipa { color: #6f8aa8; }
+  .line.curr .w.active {
+    background: var(--hit); color: #1a1300;
+    box-shadow: 0 0 0 2px rgba(255, 216, 102, 0.25);
+  }
+  .line.curr .w.active .ipa { color: #5a3d00; }
+  .line.prev, .line.next { cursor: pointer; }
+  .line.prev:hover, .line.next:hover { color: #c4c4cc; }
+
+  .nav {
+    display: flex; gap: 2px; -webkit-app-region: no-drag;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px; overflow: hidden;
+  }
+  .nav button {
+    background: transparent; border: 0;
+    color: var(--fg); padding: 2px 8px;
+    font-size: 12px; cursor: pointer;
+    border-right: 1px solid rgba(255,255,255,0.08);
+  }
+  .nav button:last-child { border-right: 0; }
+  .nav button:hover { background: rgba(255,255,255,0.08); }
+
+  .progress {
+    margin-top: 10px;
+    height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress > i {
+    display: block; height: 100%; width: 0%;
+    background: var(--accent);
+  }
+
+  .hint {
+    margin-top: 18px; color: #888; font-size: 12px; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay" id="overlay">
+  <div class="top">
+    <div class="title">tom-park · sentence 2 / 4</div>
+    <div class="ctrls">
+      <div class="nav">
+        <button id="prevSent" title="Prev sentence (Shift+←)">⏮</button>
+        <button id="prevWord" title="Prev word (←)">◀</button>
+        <button id="playBtn"  title="Play / Pause (Space)">Pause</button>
+        <button id="nextWord" title="Next word (→)">▶</button>
+        <button id="nextSent" title="Next sentence (Shift+→)">⏭</button>
+      </div>
+      <button id="ipaToggle" class="on">IPA</button>
+      <button id="loopAll" class="on">Loop ∞</button>
+      <button id="loopSent">Loop sentence</button>
+      <div class="alpha-wrap">
+        <label>α</label>
+        <input id="alpha" type="range" min="0.15" max="1.0" step="0.01" value="0.78" />
+      </div>
+    </div>
+  </div>
+
+  <div class="lines">
+    <div class="line prev" id="linePrev"></div>
+    <div class="line curr" id="lineCurr"></div>
+    <div class="line next" id="lineNext"></div>
+  </div>
+
+  <div class="progress"><i id="bar"></i></div>
+</div>
+
+<div class="hint">mock — fake clock, fake IPA. drag the α slider to dim the overlay; toggle IPA to hide phonemes.</div>
+
+<script>
+  // Fake transcript with IPA per word (mirrors phonetic-atlas v2 lexicon shape).
+  const sentences = [
+    { id: 0, words: [
+      {w:"When",    ipa:"wɛn",     s:0.00, e:0.18},
+      {w:"Tom",     ipa:"tɑm",     s:0.18, e:0.42},
+      {w:"parked",  ipa:"pɑɹkt",   s:0.42, e:0.78},
+      {w:"the",     ipa:"ðə",      s:0.78, e:0.88},
+      {w:"car",     ipa:"kɑɹ",     s:0.88, e:1.20},
+    ]},
+    { id: 1, words: [
+      {w:"he",        ipa:"hi",         s:1.40, e:1.55},
+      {w:"realised",  ipa:"ˈɹiːəlaɪzd", s:1.55, e:2.05},
+      {w:"the",       ipa:"ðə",         s:2.05, e:2.15},
+      {w:"meter",     ipa:"ˈmiːtəɹ",    s:2.15, e:2.55},
+      {w:"was",       ipa:"wəz",        s:2.55, e:2.72},
+      {w:"already",   ipa:"ɔːlˈɹɛdi",   s:2.72, e:3.18},
+      {w:"expired",   ipa:"ɪkˈspaɪəɹd", s:3.18, e:3.78},
+    ]},
+    { id: 2, words: [
+      {w:"so",      ipa:"soʊ",     s:4.00, e:4.18},
+      {w:"he",      ipa:"hi",      s:4.18, e:4.30},
+      {w:"sighed",  ipa:"saɪd",    s:4.30, e:4.70},
+      {w:"reached", ipa:"ɹiːtʃt",  s:4.70, e:5.05},
+      {w:"for",     ipa:"fɔːɹ",    s:5.05, e:5.18},
+      {w:"his",     ipa:"hɪz",     s:5.18, e:5.32},
+      {w:"wallet",  ipa:"ˈwɒlɪt",  s:5.32, e:5.80},
+    ]},
+    { id: 3, words: [
+      {w:"and",     ipa:"ænd",     s:6.00, e:6.15},
+      {w:"fed",     ipa:"fɛd",     s:6.15, e:6.40},
+      {w:"the",     ipa:"ðə",      s:6.40, e:6.50},
+      {w:"machine", ipa:"məˈʃiːn", s:6.50, e:7.00},
+      {w:"another", ipa:"əˈnʌðəɹ", s:7.00, e:7.45},
+      {w:"hour.",   ipa:"aʊəɹ",    s:7.45, e:8.00},
+    ]},
+  ];
+  const TOTAL = 8.0;
+
+  const linePrev = document.getElementById("linePrev");
+  const lineCurr = document.getElementById("lineCurr");
+  const lineNext = document.getElementById("lineNext");
+  const bar      = document.getElementById("bar");
+  const title    = document.querySelector(".title");
+  const playBtn  = document.getElementById("playBtn");
+  const loopAll  = document.getElementById("loopAll");
+  const loopSent = document.getElementById("loopSent");
+  const ipaToggle= document.getElementById("ipaToggle");
+  const alpha    = document.getElementById("alpha");
+  const overlay  = document.getElementById("overlay");
+
+  let showIpa = true;
+
+  function renderSentence(el, sIdx, activeIdx, spokenIdx) {
+    if (sIdx < 0 || sIdx >= sentences.length) { el.innerHTML = ""; return; }
+    const s = sentences[sIdx];
+    el.innerHTML = s.words.map((w, i) => {
+      const cls = (i === activeIdx)         ? "w active"
+                : (i === activeIdx - 1)     ? "w justspoken"
+                : (i <  activeIdx)          ? "w spoken"
+                                            : "w";
+      const ipa = showIpa ? `<span class="ipa">${w.ipa}</span>` : "";
+      return `<span class="${cls}" data-i="${i}"><span class="txt">${w.w}</span>${ipa}</span>`;
+    }).join(" ");
+  }
+
+  function findActive(t) {
+    for (let si = 0; si < sentences.length; si++) {
+      const s = sentences[si];
+      for (let wi = 0; wi < s.words.length; wi++) {
+        const w = s.words[wi];
+        if (t >= w.s && t < w.e) return { si, wi };
+      }
+    }
+    let last = { si: 0, wi: -1 };
+    for (let si = 0; si < sentences.length; si++) {
+      for (let wi = 0; wi < sentences[si].words.length; wi++) {
+        if (sentences[si].words[wi].e <= t) last = { si, wi };
+      }
+    }
+    return last;
+  }
+
+  let t = 0, playing = true, last = performance.now();
+  let mode = "all";
+  let lockedSentence = 1;
+
+  function tick(now) {
+    const dt = (now - last) / 1000; last = now;
+    if (playing) t += dt;
+    if (mode === "all" && t >= TOTAL) t = 0;
+    if (mode === "sentence") {
+      const s = sentences[lockedSentence];
+      if (t < s.words[0].s || t >= s.words[s.words.length - 1].e) {
+        t = s.words[0].s;
+      }
+    }
+    const { si, wi } = findActive(t);
+    renderSentence(linePrev, si - 1, -1, sentences[si-1]?.words.length ?? -1);
+    renderSentence(lineCurr, si,     wi, wi - 1);
+    renderSentence(lineNext, si + 1, -1, -1);
+    title.textContent = `tom-park · sentence ${si + 1} / ${sentences.length}`;
+    bar.style.width = (100 * t / TOTAL).toFixed(2) + "%";
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame((n) => { last = n; tick(n); });
+
+  playBtn.onclick = () => {
+    playing = !playing;
+    playBtn.textContent = playing ? "Pause" : "Play";
+  };
+  loopAll.onclick = () => {
+    mode = "all"; loopAll.classList.add("on"); loopSent.classList.remove("on");
+  };
+  loopSent.onclick = () => {
+    mode = "sentence";
+    const { si } = findActive(t);
+    lockedSentence = si;
+    loopSent.classList.add("on"); loopAll.classList.remove("on");
+  };
+  ipaToggle.onclick = () => {
+    showIpa = !showIpa;
+    ipaToggle.classList.toggle("on", showIpa);
+  };
+  alpha.oninput = () => {
+    document.documentElement.style.setProperty("--bg-alpha", alpha.value);
+    // In Tauri you'd also call appWindow.setOpacity(parseFloat(alpha.value)).
+  };
+
+  function flatWords() {
+    const flat = [];
+    sentences.forEach((s, si) => s.words.forEach((w, wi) => flat.push({ si, wi, w })));
+    return flat;
+  }
+  function seekToWord(si, wi) {
+    if (si < 0 || si >= sentences.length) return;
+    const s = sentences[si];
+    if (wi < 0) wi = 0;
+    if (wi >= s.words.length) wi = s.words.length - 1;
+    t = s.words[wi].s + 0.001;
+    if (mode === "sentence") lockedSentence = si;
+  }
+  function stepWord(delta) {
+    const flat = flatWords();
+    const { si, wi } = findActive(t);
+    const idx = flat.findIndex(x => x.si === si && x.wi === wi);
+    const next = flat[Math.max(0, Math.min(flat.length - 1, idx + delta))];
+    seekToWord(next.si, next.wi);
+  }
+  function stepSentence(delta) {
+    const { si } = findActive(t);
+    seekToWord(si + delta, 0);
+  }
+
+  document.getElementById("prevWord").onclick = () => stepWord(-1);
+  document.getElementById("nextWord").onclick = () => stepWord(+1);
+  document.getElementById("prevSent").onclick = () => stepSentence(-1);
+  document.getElementById("nextSent").onclick = () => stepSentence(+1);
+
+  // Click any word on any line to jump there.
+  document.querySelectorAll(".line").forEach(line => {
+    line.addEventListener("click", (e) => {
+      const wEl = e.target.closest(".w");
+      if (!wEl) {
+        // clicked line background → jump to its first word
+        const which = line.id; // linePrev / lineCurr / lineNext
+        const { si } = findActive(t);
+        const target = which === "linePrev" ? si - 1 : which === "lineNext" ? si + 1 : si;
+        seekToWord(target, 0);
+        return;
+      }
+      const wi = parseInt(wEl.dataset.i, 10);
+      const which = line.id;
+      const { si } = findActive(t);
+      const target = which === "linePrev" ? si - 1 : which === "lineNext" ? si + 1 : si;
+      seekToWord(target, wi);
+    });
+  });
+
+  // Keyboard shortcuts.
+  window.addEventListener("keydown", (e) => {
+    if (e.key === " ")            { e.preventDefault(); playBtn.click(); }
+    else if (e.key === "ArrowLeft"  && e.shiftKey) stepSentence(-1);
+    else if (e.key === "ArrowRight" && e.shiftKey) stepSentence(+1);
+    else if (e.key === "ArrowLeft")                stepWord(-1);
+    else if (e.key === "ArrowRight")               stepWord(+1);
+  });
+</script>
+</body>
+</html>

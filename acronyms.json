@@ -1,0 +1,15 @@
+{
+  "vllm": "v l l m",
+  "llm": "l l m",
+  "v1": "v one",
+  "v0": "v zero",
+  "nccl": "n c c l",
+  "gpu": "g p u",
+  "cpu": "c p u",
+  "kv": "k v",
+  "p2p": "p two p",
+  "tcp": "t c p",
+  "rdma": "r d m a",
+  "ai": "a i",
+  "3am": "three a m"
+}

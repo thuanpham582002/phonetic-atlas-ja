@@ -1,0 +1,44 @@
+.venv/
+.venv-*/
+__pycache__/
+*.pyc
+.DS_Store
+
+# user data
+words.json
+subtitles.srt
+samples/*/manifest.json
+data/
+examples/*
+!examples/.gitkeep
+
+# pi / agent runtime — never tracked
+.pi/
+.claude/
+.hermes_scripts/
+.run/
+**/.pi-lens/
+
+# secrets (per-user, never commit)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# node
+node_modules/
+
+# misc
+*.log
+/tmp/
+dist/
+build/
+**/binaries/
+reports/
+
+desktop/src-tauri/target/
+desktop/src-tauri/gen/schemas/
+.DS_Store

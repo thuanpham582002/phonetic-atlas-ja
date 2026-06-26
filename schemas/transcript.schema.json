@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phonetic-atlas/schemas/transcript.schema.json",
+  "title": "Phonetic Atlas transcript (v2, lexicon model)",
+  "type": "object",
+  "required": ["schema_version", "session", "lexicon", "transcript"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 2 },
+    "session": {
+      "type": "object",
+      "required": ["id", "duration", "lang_src", "lang_gloss"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "duration": { "type": "number", "minimum": 0 },
+        "lang_src": { "type": "string" },
+        "lang_gloss": { "type": "string" },
+        "aligner": { "type": "string", "enum": ["mfa", "whisperx"] }
+      }
+    },
+    "lexicon": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/lexeme" }
+    },
+    "transcript": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/token" }
+    },
+    "sentences": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sentence" }
+    },
+    "pauses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["after", "gap_ms"],
+        "additionalProperties": false,
+        "properties": {
+          "after": { "type": "integer", "minimum": 0 },
+          "gap_ms": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "lexeme": {
+      "type": "object",
+      "required": ["key", "ipa_citation", "occurrences"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string" },
+        "lemma": { "type": "string" },
+        "surface_forms": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "ipa_citation": { "type": "string" },
+        "ipa_citation_source": { "type": ["string", "null"] },
+        "ipa_citation_confidence": { "type": ["string", "null"] },
+        "ipa_citation_url": { "type": ["string", "null"] },
+        "ipa_citation_audio_ogg": { "type": ["string", "null"] },
+        "ipa_citation_audio_mp3": { "type": ["string", "null"] },
+        "ipa_citation_alternatives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "entry_id": { "type": ["string", "null"] },
+              "pos": { "type": ["string", "null"] },
+              "ipa": { "type": ["string", "null"] },
+              "url": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "pos": { "type": ["string", "null"] },
+        "gloss": { "type": ["string", "null"] },
+        "definition": { "type": ["string", "null"] },
+        "definition_gloss": { "type": ["string", "null"] },
+        "note": { "type": ["string", "null"] },
+        "reading": { "type": ["string", "null"] },
+        "romaji": { "type": ["string", "null"] },
+        "mora": {
+          "type": ["array", "null"],
+          "items": { "type": "string" }
+        },
+        "furigana": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "required": ["text"],
+            "additionalProperties": false,
+            "properties": {
+              "text": { "type": "string" },
+              "ruby": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "pitch_accent": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "accent": { "type": ["integer", "null"], "minimum": 0 },
+            "pattern": {
+              "type": ["array", "null"],
+              "items": { "type": "string", "enum": ["H", "L"] }
+            }
+          }
+        },
+        "occurrences": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "phoneme": {
+      "type": "object",
+      "required": ["p", "start", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "p": { "type": "string" },
+        "start": { "type": "number", "minimum": 0 },
+        "end": { "type": "number", "minimum": 0 },
+        "stress": { "type": "integer", "enum": [1, 2] }
+      }
+    },
+    "token": {
+      "type": "object",
+      "required": ["i", "raw", "lex", "start", "end", "ipa"],
+      "additionalProperties": false,
+      "properties": {
+        "i": { "type": "integer", "minimum": 0 },
+        "raw": { "type": "string" },
+        "lex": { "type": ["string", "null"] },
+        "sent": { "type": ["integer", "null"], "minimum": 0 },
+        "start": { "type": "number", "minimum": 0 },
+        "end": { "type": "number", "minimum": 0 },
+        "ipa": { "type": "string" },
+        "phonemes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/phoneme" }
+        },
+        "phonemes_citation": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/phoneme" }
+        },
+        "f0_norm": {
+          "type": "array",
+          "items": { "type": ["number", "null"] }
+        },
+        "stress": { "type": "boolean" },
+        "peak": { "type": "boolean" },
+        "is_filler": { "type": "boolean" }
+      }
+    },
+    "sentence": {
+      "type": "object",
+      "required": ["i", "span", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "i": { "type": "integer", "minimum": 0 },
+        "span": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "text": { "type": "string" },
+        "gloss": { "type": ["string", "null"] },
+        "note": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

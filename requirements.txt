@@ -1,0 +1,16 @@
+whisperx
+torch
+torchaudio
+transformers
+phonemizer
+fugashi
+unidic-lite
+jaconv
+jamdict
+jamdict-data
+fastapi
+uvicorn
+python-multipart
+RangeHTTPServer
+praat-parselmouth
+lz4

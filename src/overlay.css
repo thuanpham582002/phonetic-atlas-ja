@@ -1,0 +1,508 @@
+/* Teleprompter overlay — small floating strip. See docs/teleprompter-overlay-plan.md. */
+
+.overlay-mode {
+  --bg-alpha: 0.78;
+  --fg: #e8e8ea;
+  --dim: #6b6b73;
+  --hit: #ffd866;
+  --accent: #7aa2ff;
+  --ipa: #9ad1ff;
+  margin: 0;
+  font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+  background: transparent;
+  color: var(--fg);
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  overflow: hidden;
+}
+.overlay-mode::-webkit-scrollbar { display: none; }
+.overlay { overflow: hidden; }
+.overlay::-webkit-scrollbar { display: none; }
+
+.overlay-mode * { box-sizing: border-box; }
+
+.overlay { position: relative; }
+
+/* Resize handles hidden — overlay is now a fixed full-width strip. */
+.overlay .resize { display: none; }
+
+.overlay {
+  width: 100%;
+  height: 100%;
+  background: rgba(18, 18, 22, var(--bg-alpha));
+  color: var(--fg);
+  border-radius: 0;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  padding: 0 10px;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.overlay .collapse-toggle {
+  order: 4;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 5px;
+  color: var(--fg);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.overlay .collapse-toggle:hover { background: rgba(255, 255, 255, 0.10); }
+
+.overlay.collapsed {
+  justify-content: center;
+  padding: 0;
+}
+.overlay.collapsed .top,
+.overlay.collapsed .lines,
+.overlay.collapsed .progress,
+.overlay.collapsed .search-bar,
+.overlay.collapsed .dict-bar,
+.overlay.collapsed .empty {
+  display: none !important;
+}
+.overlay.collapsed .collapse-toggle {
+  order: 1;
+  margin: 0;
+}
+
+/* All children inline — flatten the original top/lines vertical stack. */
+.overlay .top {
+  display: contents;
+}
+.overlay .title { display: none; }
+.overlay .alpha-wrap { display: none; }
+
+/* Split layout: picker+play stacked on the left, sentence centered, ctrls on the right. */
+.overlay .left-col     { order: 1; }
+.overlay .lines        { order: 2; }
+.overlay .ctrls        { order: 3; }
+
+.overlay select.picker,
+.overlay .ctrls {
+  -webkit-app-region: no-drag;
+}
+
+.overlay select.picker {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  padding: 1px 4px;
+  font-size: 10px;
+  max-width: 180px;
+}
+
+.overlay .ctrls {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.overlay .ctrls button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--fg);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 10px;
+  cursor: pointer;
+}
+.overlay .ctrls button.on {
+  background: var(--accent);
+  color: #0c1226;
+  border-color: transparent;
+}
+.overlay .ctrls button:hover { background: rgba(255, 255, 255, 0.08); }
+.overlay .ctrls button.on:hover { background: var(--accent); filter: brightness(1.05); }
+
+.overlay .left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+}
+.overlay .play-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--fg);
+  border-radius: 5px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 14px;
+  cursor: pointer;
+  text-align: center;
+}
+.overlay .play-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.overlay .left-col select.picker { max-width: 140px; }
+
+.overlay .alpha-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+}
+.overlay .alpha-wrap label {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.3px;
+}
+.overlay .alpha-wrap input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 70px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  outline: none;
+}
+.overlay .alpha-wrap input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid #0c1226;
+}
+
+.overlay .lines {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+}
+.overlay .line.prev, .overlay .line.next { display: none; }
+.overlay .line.curr {
+  display: inline-block;
+  color: var(--fg);
+  font-size: 16px;
+  line-height: 1;
+  transform: translateX(var(--scroll, 0px));
+  transition: transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+
+.overlay .w {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 4px;
+  border-radius: 5px;
+  vertical-align: top;
+  transition: background 80ms linear, color 80ms linear;
+  cursor: pointer;
+}
+.overlay .w .txt { line-height: 1.05; }
+.overlay .w .ipa {
+  font-family: "Charis SIL", "Doulos SIL", "Lucida Sans Unicode", serif;
+  font-size: 0.78em;
+  color: var(--ipa);
+  margin-top: 1px;
+  letter-spacing: 0.2px;
+  opacity: 0.95;
+}
+.overlay.no-ipa .w .ipa { display: none; }
+
+/* Prosody markers — bold for stress, ↗/↘ for pitch movement, faded for fillers. */
+.overlay .w.stress .txt { font-weight: 700; }
+.overlay .w.peak .txt   { text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--accent); text-decoration-thickness: 1px; }
+.overlay .w.filler      { opacity: 0.5; font-style: italic; }
+.overlay .w .pitch {
+  font-size: 0.6em;
+  color: var(--accent);
+  margin-left: 2px;
+  vertical-align: super;
+  opacity: 0.85;
+}
+.overlay.no-prosody .w.stress .txt { font-weight: inherit; }
+.overlay.no-prosody .w.peak   .txt { text-decoration: none; }
+.overlay.no-prosody .w.filler      { opacity: 1; font-style: normal; }
+.overlay.no-prosody .w .pitch      { display: none; }
+
+/* Pause / breath marker between words; width scales with gap_ms (set inline). */
+.overlay .pause {
+  display: inline-block;
+  text-align: center;
+  color: var(--dim);
+  font-size: 0.7em;
+  vertical-align: middle;
+  opacity: 0.55;
+  user-select: none;
+}
+.overlay.no-prosody .pause { display: none; }
+.overlay .line.prev .w .ipa,
+.overlay .line.next .w .ipa { display: none; }
+
+.overlay .line.curr .w.spoken { color: var(--dim); }
+.overlay .line.curr .w.spoken .ipa { color: #4b6478; }
+.overlay .line.curr .w.justspoken {
+  color: #b9b9c2;
+  background: rgba(122, 162, 255, 0.10);
+}
+.overlay .line.curr .w.justspoken .ipa { color: #6f8aa8; }
+.overlay .line.curr .w.active {
+  background: var(--hit);
+  color: #1a1300;
+  box-shadow: 0 0 0 2px rgba(255, 216, 102, 0.25);
+}
+.overlay .line.curr .w.active .ipa { color: #5a3d00; }
+
+.overlay .line.prev,
+.overlay .line.next { cursor: pointer; }
+.overlay .line.prev:hover,
+.overlay .line.next:hover { color: #c4c4cc; }
+
+.overlay .w.ab-a { box-shadow: inset 0 -2px 0 #5fd17a; }
+.overlay .w.ab-b { box-shadow: inset 0 -2px 0 #e07a7a; }
+
+.overlay .progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.overlay .progress > i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+}
+.overlay .progress .ab-mark {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 7px;
+  border-radius: 1px;
+}
+.overlay .progress .ab-a { background: #5fd17a; }
+.overlay .progress .ab-b { background: #e07a7a; }
+
+/* Sample search (Cmd+K) — replaces bar content with input + pill results. */
+.overlay .search-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+.overlay.search-open .search-bar { display: flex; }
+.overlay.search-open .left-col,
+.overlay.search-open .lines,
+.overlay.search-open .ctrls,
+.overlay.search-open .dict-bar { display: none; }
+
+.search-input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  width: 220px;
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+.search-input:focus { border-color: var(--accent); }
+
+.search-results {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  min-width: 0;
+  scrollbar-width: none;
+}
+.search-results::-webkit-scrollbar { display: none; }
+
+.search-pill {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--fg);
+  padding: 1px 8px;
+  font-size: 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+}
+.search-pill:hover { background: rgba(255, 255, 255, 0.08); }
+.search-pill.on {
+  background: var(--accent);
+  color: #0c1226;
+  border-color: transparent;
+}
+
+.search-close {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--fg);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+}
+.search-close:hover { background: rgba(255, 255, 255, 0.08); }
+
+/* Dictionary view — replaces bar content when a word is "opened" (click or d). */
+.overlay .dict-bar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  font-size: 12px;
+  color: var(--fg);
+  min-width: 0;
+}
+.overlay.dict-open .dict-bar { display: flex; }
+.overlay.dict-open .left-col,
+.overlay.dict-open select.picker,
+.overlay.dict-open .nav,
+.overlay.dict-open .ctrls,
+.overlay.dict-open .lines { display: none; }
+
+.dict-close,
+.dict-audio {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.dict-close:hover,
+.dict-audio:hover { background: rgba(255,255,255,0.08); }
+.dict-audio.on {
+  background: var(--accent);
+  color: #0c1226;
+  border-color: transparent;
+}
+.dict-audio:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.dict-lemma {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.dict-pos {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--dim);
+  letter-spacing: 0.6px;
+  padding: 1px 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+}
+
+.dict-ipa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "Charis SIL", "Doulos SIL", "Lucida Sans Unicode", serif;
+  white-space: nowrap;
+}
+.dict-lbl {
+  font-family: -apple-system, system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dict-cite { color: var(--ipa); }
+.dict-said { color: #ffd866; }
+.dict-arrow { color: var(--dim); font-family: -apple-system, system-ui, sans-serif; }
+.dict-delta {
+  font-family: -apple-system, system-ui, sans-serif;
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+.dict-delta.matches { color: #5fd17a; }
+.dict-delta.differs { color: #e07a7a; }
+
+.dict-sense {
+  min-width: 0;
+  font-size: 12px;
+  color: #c8c8d0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+  flex: 1 1 180px;
+}
+
+.dict-occ {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.dict-occ-pill {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--dim);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+.dict-occ-pill:hover { background: rgba(255,255,255,0.08); color: var(--fg); }
+.dict-occ-pill.on {
+  background: var(--accent);
+  color: #0c1226;
+  border-color: transparent;
+}
+
+.overlay .empty {
+  padding: 18px 4px 4px;
+  color: var(--dim);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
+.overlay .empty code {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+  border-radius: 4px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+  user-select: text;
+  -webkit-app-region: no-drag;
+}

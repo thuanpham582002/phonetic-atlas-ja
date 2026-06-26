@@ -1,0 +1,181 @@
+{
+  "lexemes": {
+    "tom": {
+      "pos": "noun",
+      "gloss": "Tom (tên)",
+      "definition": "a male name"
+    },
+    "likes": {
+      "pos": "verb",
+      "gloss": "thích",
+      "definition": "finds agreeable"
+    },
+    "animals": {
+      "pos": "noun",
+      "gloss": "động vật",
+      "definition": "living creatures"
+    },
+    "he": {
+      "pos": "pronoun",
+      "gloss": "anh ấy",
+      "definition": "third person male pronoun"
+    },
+    "has": {
+      "pos": "verb",
+      "gloss": "có",
+      "definition": "possesses"
+    },
+    "two": {
+      "pos": "numeral",
+      "gloss": "hai",
+      "definition": "the number 2"
+    },
+    "cats": {
+      "pos": "noun",
+      "gloss": "mèo",
+      "definition": "small furry pets"
+    },
+    "and": {
+      "pos": "conjunction",
+      "gloss": "và",
+      "definition": "connects words"
+    },
+    "one": {
+      "pos": "numeral",
+      "gloss": "một",
+      "definition": "the number 1"
+    },
+    "dog": {
+      "pos": "noun",
+      "gloss": "chó",
+      "definition": "a common pet"
+    },
+    "every": {
+      "pos": "determiner",
+      "gloss": "mỗi",
+      "definition": "each one"
+    },
+    "morning": {
+      "pos": "noun",
+      "gloss": "buổi sáng",
+      "definition": "early part of day"
+    },
+    "feeds": {
+      "pos": "verb",
+      "gloss": "cho ăn",
+      "definition": "gives food to"
+    },
+    "his": {
+      "pos": "determiner",
+      "gloss": "của anh ấy",
+      "definition": "belonging to him"
+    },
+    "pets": {
+      "pos": "noun",
+      "gloss": "thú cưng",
+      "definition": "companion animals"
+    },
+    "plays": {
+      "pos": "verb",
+      "gloss": "chơi",
+      "definition": "engages in fun activities"
+    },
+    "with": {
+      "pos": "preposition",
+      "gloss": "với",
+      "definition": "accompanied by"
+    },
+    "them": {
+      "pos": "pronoun",
+      "gloss": "chúng nó",
+      "definition": "plural object pronoun"
+    },
+    "the": {
+      "pos": "determiner",
+      "gloss": "(mạo từ)",
+      "definition": "definite article"
+    },
+    "they": {
+      "pos": "pronoun",
+      "gloss": "chúng",
+      "definition": "third person plural pronoun"
+    },
+    "sleep": {
+      "pos": "verb",
+      "gloss": "ngủ",
+      "definition": "rest with closed eyes"
+    },
+    "on": {
+      "pos": "preposition",
+      "gloss": "trên",
+      "definition": "physically supported by"
+    },
+    "sofa": {
+      "pos": "noun",
+      "gloss": "ghế sofa",
+      "definition": "a long soft seat"
+    },
+    "while": {
+      "pos": "conjunction",
+      "gloss": "trong khi",
+      "definition": "at the same time as"
+    },
+    "runs": {
+      "pos": "verb",
+      "gloss": "chạy",
+      "definition": "moves quickly"
+    },
+    "around": {
+      "pos": "preposition",
+      "gloss": "quanh",
+      "definition": "in a circle"
+    },
+    "house": {
+      "pos": "noun",
+      "gloss": "ngôi nhà",
+      "definition": "a building for living"
+    },
+    "loves": {
+      "pos": "verb",
+      "gloss": "yêu",
+      "definition": "feels deep affection"
+    },
+    "because": {
+      "pos": "conjunction",
+      "gloss": "bởi vì",
+      "definition": "for the reason"
+    },
+    "make": {
+      "pos": "verb",
+      "gloss": "làm cho",
+      "definition": "causes to be"
+    },
+    "him": {
+      "pos": "pronoun",
+      "gloss": "anh ấy",
+      "definition": "male object pronoun"
+    },
+    "happy": {
+      "pos": "adjective",
+      "gloss": "vui vẻ",
+      "definition": "feeling pleasure"
+    }
+  },
+  "sentences": {
+    "0": {
+      "gloss": null
+    },
+    "1": {
+      "gloss": null
+    },
+    "2": {
+      "gloss": null
+    },
+    "3": {
+      "gloss": null
+    },
+    "4": {
+      "gloss": null
+    }
+  }
+}
