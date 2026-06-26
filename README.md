@@ -1,27 +1,48 @@
 # phonetic-atlas
 
 Word- and phoneme-level pronunciation drill tool. You feed it audio + transcript;
-it produces a clickable transcript with two parallel IPA layers — what was
-actually said (audio-derived) vs. the citation form from a dictionary — both
-synced to the audio waveform.
+it produces a clickable transcript with pronunciation annotations synced to the
+audio waveform.
+
+- **English** shows two parallel IPA layers — the citation form from a dictionary
+  (default) vs. what was actually said (audio-derived) — both synced to the
+  audio.
+- **Japanese** shows a learner-facing **Hepburn rōmaji** line with a **pitch-accent
+  overline**; the full IPA + furigana + gloss live in the per-word dictionary card.
 
 Built on top of **Montreal Forced Aligner (MFA)** for word-level alignment
 (with WhisperX as fallback) and a wav2vec2 phoneme model
 (`facebook/wav2vec2-lv-60-espeak-cv-ft`) for phoneme timing and IPA
-extraction.
+extraction. Japanese pronunciation is generated deterministically from UniDic
+発音 (no espeak) — see `docs/japanese-pipeline.md`.
 
 ## What you get
 
-- Click any word or any phoneme to jump to that exact moment in the audio.
+- Click any word or any sub-word unit (English phoneme / Japanese mora) to jump
+  to that exact moment in the audio.
+- Live highlighting follows the audio at ~60fps, down to the phoneme/mora.
 - Loop a single word with adjustable delay and repeat count for drill practice.
-- Two IPA layers per word:
-  - **Audio**: greedy decoding from the model's logits — captures real
-    pronunciation, weak forms, linking, flap T, etc.
-  - **Citation**: canonical IPA from `phonemizer` + `espeak-ng` aligned to
-    audio via CTC forced alignment.
-- Live phoneme highlighting at ~60fps (sub-50ms phonemes still get highlighted).
+- Deep-link straight to a sample with `?sample=<slug>` (auto-loads into the player).
 - Full keyboard shortcuts. Settings persist across reloads.
-- IPA simplification toggle (learner-style: `ɹ` → `r`, `ɾ` → `r`, `ᵻ` → `ɪ`, …).
+
+**English** — two IPA layers per word:
+
+- **Citation** (shown by default): canonical IPA from `phonemizer` + `espeak-ng`,
+  aligned to audio via CTC forced alignment.
+- **Audio** (toggle): greedy decoding from the model's logits — captures real
+  pronunciation, weak forms, linking, flap T, etc. (lossy; the citation layer is
+  the reliable reference.)
+- **simplify** toggle for learner-style symbols (`ɹ` → `r`, `ɾ` → `r`, `ᵻ` → `ɪ`, …).
+
+**Japanese** — a learner-facing line tuned for production, not phonetics:
+
+- **Hepburn rōmaji** under each word, derived from UniDic 発音 so particles read
+  right (`は` → `wa`, `を` → `o`, `へ` → `e`).
+- **Pitch-accent overline** over the high morae with a downstep tick at the
+  accent nucleus (standard Tokyo-accent notation).
+- Per-mora **follow + click-to-seek**, mirroring English phonemes.
+- **romaji** chip toggles the line; full IPA + furigana + reading + gloss are one
+  click away in the dictionary card.
 
 ## Quick start
 
@@ -115,6 +136,22 @@ View the result through the web app (see *Run the web app* above).
 6. The browser plays the audio and highlights the active word and phoneme on
    each animation frame.
 
+**Japanese path** (per-sample `lang: "ja"`) diverges after step 1:
+
+- Tokenization is morpheme-level via **fugashi/UniDic**; MFA aligns with the
+  `japanese_mfa` models.
+- Citation IPA is **not** from espeak. A deterministic **katakana → IPA**
+  converter is fed UniDic **発音 (`pron`)** — the *contextual* pronunciation —
+  so particles (`は`→`wa`), long vowels (`ー`→`ː`), geminates (`っ`), and moraic
+  nasal place assimilation (`n`/`ŋ`/`m`/`ɴ`) all come out right.
+- Because the citation form is normative (not what was said), its phonemes are
+  split from the clean IPA and **distributed evenly** across the MFA word span —
+  Japanese is mora-timed, so this is accurate — rather than forced through the
+  English-trained CTC aligner.
+- Per-mora Hepburn rōmaji + H/L pitch (from the UniDic accent type) drive the
+  learner line; the audio-derived layer is dropped (the CTC model is
+  English-trained and meaningless for Japanese).
+
 ## Acronyms & symbols
 
 MFA places garbage time boundaries on tokens it can't pronounce as written
@@ -172,10 +209,11 @@ Samples are auto-discovered: any `samples/<slug>/` dir with an audio file and
 `transcript.txt` appears in the picker — no manifest to edit.
 
 > **Japanese samples**: set `"lang": "ja"` in `meta.json`. The pipeline then
-> tokenizes with fugashi/UniDic and emits reading, romaji, mora, pitch accent,
-> furigana, and JMdict glosses. See `docs/japanese-pipeline.md` (and install the
-> `japanese_mfa` MFA model for correct alignment). Reference sample:
-> `samples/ja-pm-role/`.
+> tokenizes with fugashi/UniDic and emits reading, per-mora rōmaji + pitch,
+> mora, furigana, deterministic kana→IPA citation, and JMdict glosses. The
+> player renders the rōmaji+pitch learner line (IPA in the dictionary card). See
+> `docs/japanese-pipeline.md` (and install the `japanese_mfa` MFA model for
+> correct alignment). Reference sample: `samples/ja-pm-role/`.
 
 | File | Required | Purpose |
 |------|----------|---------|
@@ -304,7 +342,11 @@ floats over fullscreen apps and persists across Space/display changes.
 - The alignment is only as good as the wav2vec2 phoneme model. Heavy accents,
   background music, or very fast speech degrade quality.
 - Final consonants below the confidence threshold (e.g. tail `/d/`, `/m/` at
-  end of utterance) may be dropped from the audio layer.
+  end of utterance) may be dropped from the **audio** layer (English; the
+  citation layer, shown by default, is unaffected).
+- Japanese sub-word (mora) timing is an **even split** of the MFA-aligned word
+  span, not a true acoustic sub-word alignment — accurate because Japanese is
+  mora-timed, but uniform within a word. Word boundaries themselves come from MFA.
 - English and Japanese are supported (per-sample `lang`); other languages need
   a phoneme model + espeak voice and a tokenizer (see `docs/japanese-pipeline.md`).
 - Tokens that aren't in the acronym map and contain digits/symbols MFA can't
@@ -325,6 +367,8 @@ MIT.
 Japanese glosses come from **JMdict/EDICT**, the property of the
 [Electronic Dictionary Research and Development Group (EDRDG)](https://www.edrdg.org/),
 used under the [Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
-license (bundled via the `jamdict-data` package). Tokenization and readings use
-**UniDic** (via `fugashi` + `unidic-lite`). Citation IPA is generated with
-**espeak-ng**. No proprietary dictionary data is shipped.
+license (bundled via the `jamdict-data` package). Tokenization, readings, and
+pitch accent use **UniDic** (via `fugashi` + `unidic-lite`); Japanese citation
+IPA and rōmaji are derived deterministically from UniDic 発音 (no espeak).
+English citation IPA is generated with **espeak-ng**. No proprietary dictionary
+data is shipped.
