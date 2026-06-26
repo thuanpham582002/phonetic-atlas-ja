@@ -671,9 +671,13 @@ body.no-ipa .ipa { display: none; }
 .ja-romaji .mora {
   display: inline-block;
   padding-top: 1px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background .08s, color .08s;
 }
 .ja-romaji .mora.hi { border-top: 1.5px solid var(--indigo); }
 .ja-romaji .mora.drop { border-right: 1.5px solid var(--indigo); padding-right: 1px; }
+.ja-romaji .mora.active { background: var(--indigo); color: var(--bg); }
 body.no-romaji .ja-romaji { display: none; }
 /* The IPA/citation/simplify chips only act on the IPA layers (in the dict card
    for ja); the 'romaji' chip is ja-only. Swap them by language. */

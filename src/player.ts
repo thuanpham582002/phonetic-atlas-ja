@@ -107,10 +107,12 @@ export function initPlayer({ audioEl, transcriptEl, controlsEls, playerWrapEl, s
   let nodeOf: (HTMLElement | null)[] = [];
   let flatAudio: FlatPhoneme[] = [];
   let flatCanon: FlatPhoneme[] = [];
+  let flatMora: FlatPhoneme[] = [];  // phIdx holds the mora index
   let activeIdx = -1;
   let selectedIdx = -1;
   let activePhAudio: Element | null = null;
   let activePhCanon: Element | null = null;
+  let activeMora: Element | null = null;
   let loopRange: { start: number; end: number } | null = null;
   let loopsDone = 0;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null;
@@ -239,7 +241,12 @@ export function initPlayer({ audioEl, transcriptEl, controlsEls, playerWrapEl, s
       const romajiLine = (isJa && w.mora_pitch?.length)
         ? `<span class="ja-romaji">${w.mora_pitch.map((m: any, j: number, arr: any[]) => {
             const drop = m.h && arr[j + 1] && !arr[j + 1].h;  // accent nucleus
-            return `<span class="mora${m.h ? ' hi' : ''}${drop ? ' drop' : ''}">${escapeHtml(m.r)}</span>`;
+            // Mora-timed even split of the word span, so playback can follow
+            // (and clicks can seek to) each mora — like English phonemes.
+            const step = (w.end - w.start) / arr.length;
+            const ms = (w.start + j * step).toFixed(3);
+            const me = (w.start + (j + 1) * step).toFixed(3);
+            return `<span class="mora${m.h ? ' hi' : ''}${drop ? ' drop' : ''}" data-m="${j}" data-start="${ms}" data-end="${me}">${escapeHtml(m.r)}</span>`;
           }).join('')}</span>`
         : '';
       const audioLine = (!isJa && (w.ipa || w.phonemes?.length)) ? `<span class="ipa ipa-audio"></span>` : '';
@@ -253,6 +260,16 @@ export function initPlayer({ audioEl, transcriptEl, controlsEls, playerWrapEl, s
       return `<span class="${cls.join(' ')}" data-i="${i}"><span class="word-line">${contour}<span class="word-text">${escapeHtml(w.word)}</span></span>${romajiLine}${audioLine}${canonLine}</span>${trailing}`;
     }).join(' ');
     nodeOf = words.map((_, i) => transcriptEl.querySelector<HTMLElement>(`.w[data-i="${i}"]`));
+    flatMora = [];
+    words.forEach((w, wi) => {
+      const mp = w.mora_pitch;
+      if (!mp?.length) return;
+      const step = (w.end - w.start) / mp.length;
+      mp.forEach((_m, mi) => flatMora.push({
+        wordIdx: wi, phIdx: mi,
+        start: w.start + mi * step, end: w.start + (mi + 1) * step,
+      }));
+    });
     renderIpa();
     playerWrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -309,6 +326,15 @@ export function initPlayer({ audioEl, transcriptEl, controlsEls, playerWrapEl, s
       if (c) c.classList.add('active');
       activePhCanon = c;
     }
+    const mHit = findActive(flatMora, t);
+    const m = mHit && nodeOf[mHit.wordIdx]
+      ? nodeOf[mHit.wordIdx]!.querySelector(`.ja-romaji .mora[data-m="${mHit.phIdx}"]`)
+      : null;
+    if (m !== activeMora) {
+      if (activeMora) activeMora.classList.remove('active');
+      if (m) m.classList.add('active');
+      activeMora = m;
+    }
   }
 
   simpleIpaEl.addEventListener('change', renderIpa);
@@ -317,14 +343,15 @@ export function initPlayer({ audioEl, transcriptEl, controlsEls, playerWrapEl, s
 
   transcriptEl.addEventListener('click', e => {
     const target = e.target as HTMLElement;
-    const ph = target.closest('.ph') as HTMLElement | null;
-    if (ph) {
+    // A phoneme (en IPA) or a mora (ja romaji): seek to that sub-word unit.
+    const sub = target.closest('.ph, .mora') as HTMLElement | null;
+    if (sub) {
       e.stopPropagation();
-      const span = ph.closest('.w') as HTMLElement | null;
+      const span = sub.closest('.w') as HTMLElement | null;
       const idx = parseInt(span?.dataset.i || '', 10);
       if (!isNaN(idx)) selectWord(idx);
-      const start = parseFloat(ph.dataset.start || '');
-      const end = parseFloat(ph.dataset.end || '');
+      const start = parseFloat(sub.dataset.start || '');
+      const end = parseFloat(sub.dataset.end || '');
       seekAndPlay(start);
       if (loopWordEl.checked) { loopRange = { start, end }; loopsDone = 0; updateStatus(); }
       return;
