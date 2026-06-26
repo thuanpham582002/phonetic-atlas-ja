@@ -303,12 +303,16 @@ floats over fullscreen apps and persists across Space/display changes.
   background music, or very fast speech degrade quality.
 - Final consonants below the confidence threshold (e.g. tail `/d/`, `/m/` at
   end of utterance) may be dropped from the audio layer.
-- Currently English-only (`en-us` espeak voice). Other languages need a
-  different phoneme model + voice.
+- English and Japanese are supported (per-sample `lang`); other languages need
+  a phoneme model + espeak voice and a tokenizer (see `docs/japanese-pipeline.md`).
 - Tokens that aren't in the acronym map and contain digits/symbols MFA can't
   pronounce (bare numbers like `64`/`20Gi`, `CI/CD`) may have an empty or
   mismatched **citation** IPA. The aligner prints a `WARN short window` line
   — add the token to `acronyms.json` (global or per-sample) to fix.
+
+## Author
+
+Thuan Pham — <thuanpham05082002@gmail.com>
 
 ## License
 
