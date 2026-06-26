@@ -208,6 +208,13 @@ export function initPlayer({ audioEl, transcriptEl, controlsEls, playerWrapEl, s
     }
     lexicon = data.lexicon || {};
     lang = (data.session?.lang_src || 'en').toLowerCase();
+    const isJa = lang === 'ja';
+    // Japanese has no reliable audio-derived IPA — the CTC phoneme model is
+    // English-trained and re-tokenizes ja by character. The citation layer
+    // (espeak-ng, MFA-timed) is the trustworthy one, so for ja we surface it
+    // as the primary inline IPA and drop the audio layer. Mirrors the dict
+    // card, which hides the "said here" row for ja.
+    document.body.classList.toggle('lang-ja', isJa);
     v2t = data.transcript || [];
     words = v2t.map((t: any) => ({
       word: t.raw,
@@ -227,7 +234,7 @@ export function initPlayer({ audioEl, transcriptEl, controlsEls, playerWrapEl, s
     playerWrapEl.classList.add('shown');
     const pauseByIdx = new Map(pauses.map(p => [p.after, p.gap_ms]));
     transcriptEl.innerHTML = words.map((w, i) => {
-      const audioLine = (w.ipa || w.phonemes?.length) ? `<span class="ipa ipa-audio"></span>` : '';
+      const audioLine = (!isJa && (w.ipa || w.phonemes?.length)) ? `<span class="ipa ipa-audio"></span>` : '';
       const canonLine = w.ipa_canonical ? `<span class="ipa ipa-canon"></span>` : '';
       const cls = ['w'];
       if (w.stress) cls.push('stress');

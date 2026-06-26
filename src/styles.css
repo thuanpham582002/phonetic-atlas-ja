@@ -652,6 +652,12 @@ audio::-webkit-media-controls-panel { background: var(--surface); }
 }
 body.hide-canon .ipa-canon { display: none; }
 body.no-ipa .ipa { display: none; }
+/* Japanese: the citation layer is the only reliable IPA (the audio-derived CTC
+   model is English-trained), so show it regardless of the 'citation' toggle —
+   but still honor the master 'ipa' toggle, and hide the now-redundant chip. */
+body.lang-ja .ipa-canon { display: block; }
+body.lang-ja.no-ipa .ipa-canon { display: none; }
+body.lang-ja #chip-canon { display: none; }
 body.no-tone .contour { display: none; }
 body.no-pause .pause { display: none; }
 
@@ -764,6 +770,9 @@ body.has-recording .chip-rec { color: var(--accent); }
 }
 .swatch.audio { background: var(--accent); }
 .swatch.canon { background: var(--indigo); }
+/* Legend swaps to a single citation entry for Japanese (no audio layer). */
+body.lang-ja .legend .lg-en { display: none; }
+body:not(.lang-ja) .legend .lg-ja { display: none; }
 
 .shortcuts {
   margin-top: 28px;
