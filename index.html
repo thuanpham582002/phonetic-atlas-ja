@@ -6,7 +6,7 @@
 <title>phonetic-atlas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Charis+SIL:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -53,7 +53,8 @@
     <label class="chip on" id="chip-follow"><input type="checkbox" id="follow" checked>follow</label>
     <label class="chip on" id="chip-ipa"><input type="checkbox" id="showIpa" checked>ipa</label>
     <label class="chip on" id="chip-simple"><input type="checkbox" id="simpleIpa" checked>simplify</label>
-    <label class="chip" id="chip-canon"><input type="checkbox" id="showCanon">citation</label>
+    <label class="chip on" id="chip-canon"><input type="checkbox" id="showCanon" checked>citation</label>
+    <label class="chip on" id="chip-romaji"><input type="checkbox" id="showRomaji" checked>romaji</label>
     <label class="chip on" id="chip-tone"><input type="checkbox" id="showTone" checked>tone</label>
     <label class="chip on" id="chip-pause"><input type="checkbox" id="showPause" checked>pause</label>
     <label class="chip chip-cam-btn" id="chip-cam" title="Toggle camera self-view"><input type="checkbox" id="showCam"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>Camera</label>
@@ -70,7 +71,7 @@
   <div class="legend">
     <span class="lg-en"><span class="swatch audio"></span>actual audio</span>
     <span class="lg-en"><span class="swatch canon"></span>citation form</span>
-    <span class="lg-ja"><span class="swatch canon"></span>citation IPA · espeak-ng</span>
+    <span class="lg-ja">rōmaji · <span class="lg-pitch-mark">‾</span> high pitch · click a word for IPA</span>
   </div>
 
   <details class="shortcuts">

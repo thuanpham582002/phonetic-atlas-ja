@@ -28,6 +28,7 @@ export interface PlayerInit {
 
 export interface FuriganaSpan { text: string; ruby: string | null }
 export interface PitchAccent { accent: number | null; pattern: Array<'H' | 'L'> | null }
+export interface MoraPitch { r: string; h: boolean }
 
 export interface Lexeme {
   key: string;
@@ -48,6 +49,7 @@ export interface Lexeme {
   reading?: string | null;
   romaji?: string | null;
   mora?: string[] | null;
+  mora_pitch?: MoraPitch[] | null;
   furigana?: FuriganaSpan[] | null;
   pitch_accent?: PitchAccent | null;
   occurrences: number[];
@@ -209,11 +211,10 @@ export function initPlayer({ audioEl, transcriptEl, controlsEls, playerWrapEl, s
     lexicon = data.lexicon || {};
     lang = (data.session?.lang_src || 'en').toLowerCase();
     const isJa = lang === 'ja';
-    // Japanese has no reliable audio-derived IPA — the CTC phoneme model is
-    // English-trained and re-tokenizes ja by character. The citation layer
-    // (espeak-ng, MFA-timed) is the trustworthy one, so for ja we surface it
-    // as the primary inline IPA and drop the audio layer. Mirrors the dict
-    // card, which hides the "said here" row for ja.
+    // For Japanese the learner-facing line is Hepburn romaji + pitch (mora_pitch),
+    // not IPA: narrow IPA is hard to read/produce. The audio-derived CTC layer is
+    // English-trained and meaningless for ja, so it's dropped too. The full IPA +
+    // furigana + gloss stay one click away in the dictionary card.
     document.body.classList.toggle('lang-ja', isJa);
     v2t = data.transcript || [];
     words = v2t.map((t: any) => ({
@@ -224,6 +225,7 @@ export function initPlayer({ audioEl, transcriptEl, controlsEls, playerWrapEl, s
       ipa_canonical: (t.lex && lexicon[t.lex]?.ipa_citation) || '',
       phonemes: t.phonemes,
       phonemes_canonical: t.phonemes_citation,
+      mora_pitch: (t.lex && lexicon[t.lex]?.mora_pitch) || null,
       f0_norm: t.f0_norm,
       stress: t.stress,
       peak: t.peak,
@@ -234,15 +236,21 @@ export function initPlayer({ audioEl, transcriptEl, controlsEls, playerWrapEl, s
     playerWrapEl.classList.add('shown');
     const pauseByIdx = new Map(pauses.map(p => [p.after, p.gap_ms]));
     transcriptEl.innerHTML = words.map((w, i) => {
+      const romajiLine = (isJa && w.mora_pitch?.length)
+        ? `<span class="ja-romaji">${w.mora_pitch.map((m: any, j: number, arr: any[]) => {
+            const drop = m.h && arr[j + 1] && !arr[j + 1].h;  // accent nucleus
+            return `<span class="mora${m.h ? ' hi' : ''}${drop ? ' drop' : ''}">${escapeHtml(m.r)}</span>`;
+          }).join('')}</span>`
+        : '';
       const audioLine = (!isJa && (w.ipa || w.phonemes?.length)) ? `<span class="ipa ipa-audio"></span>` : '';
-      const canonLine = w.ipa_canonical ? `<span class="ipa ipa-canon"></span>` : '';
+      const canonLine = (!isJa && w.ipa_canonical) ? `<span class="ipa ipa-canon"></span>` : '';
       const cls = ['w'];
       if (w.stress) cls.push('stress');
       if (w.peak) cls.push('peak');
       if (w.is_filler) cls.push('filler');
       const contour = contourSvg(w.f0_norm || w.f0_trace);
       const trailing = pauseByIdx.has(i) ? pauseGlyph(pauseByIdx.get(i) as number) : '';
-      return `<span class="${cls.join(' ')}" data-i="${i}"><span class="word-line">${contour}<span class="word-text">${escapeHtml(w.word)}</span></span>${audioLine}${canonLine}</span>${trailing}`;
+      return `<span class="${cls.join(' ')}" data-i="${i}"><span class="word-line">${contour}<span class="word-text">${escapeHtml(w.word)}</span></span>${romajiLine}${audioLine}${canonLine}</span>${trailing}`;
     }).join(' ');
     nodeOf = words.map((_, i) => transcriptEl.querySelector<HTMLElement>(`.w[data-i="${i}"]`));
     renderIpa();

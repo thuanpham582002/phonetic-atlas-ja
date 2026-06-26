@@ -149,11 +149,13 @@ const simpleIpaEl = $('#simpleIpa') as HTMLInputElement;
 const showCanonEl = $('#showCanon') as HTMLInputElement;
 const showToneEl = $('#showTone') as HTMLInputElement;
 const showPauseEl = $('#showPause') as HTMLInputElement;
+const showRomajiEl = $('#showRomaji') as HTMLInputElement;
 const statusEl = $('#status') as HTMLElement;
 const playerWrapEl = $('#player-wrap') as HTMLElement;
 
-const SETTINGS_KEY = 'phonetic_atlas_settings_v1';
-const persisted = ['loopWord', 'delay', 'repeats', 'speed', 'follow', 'showIpa', 'simpleIpa', 'showCanon', 'showTone', 'showPause'];
+// v2: citation IPA is shown by default now (the audio-derived layer is lossy).
+const SETTINGS_KEY = 'phonetic_atlas_settings_v2';
+const persisted = ['loopWord', 'delay', 'repeats', 'speed', 'follow', 'showIpa', 'simpleIpa', 'showCanon', 'showTone', 'showPause', 'showRomaji'];
 
 function saveSettings() {
   const s: Record<string, string | boolean> = {};
@@ -186,15 +188,17 @@ function syncChips() {
     'chip-canon': showCanonEl,
     'chip-tone': showToneEl,
     'chip-pause': showPauseEl,
+    'chip-romaji': showRomajiEl,
   };
   for (const [chipId, input] of Object.entries(map)) {
     $('#' + chipId).classList.toggle('on', input.checked);
   }
   document.body.classList.toggle('no-tone', !showToneEl.checked);
   document.body.classList.toggle('no-pause', !showPauseEl.checked);
+  document.body.classList.toggle('no-romaji', !showRomajiEl.checked);
 }
 syncChips();
-['loopWord', 'follow', 'showIpa', 'simpleIpa', 'showCanon', 'showTone', 'showPause'].forEach(id =>
+['loopWord', 'follow', 'showIpa', 'simpleIpa', 'showCanon', 'showTone', 'showPause', 'showRomaji'].forEach(id =>
   document.getElementById(id)!.addEventListener('change', syncChips));
 
 let dict: DictApi;
