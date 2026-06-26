@@ -172,20 +172,16 @@ class Aligner:
         except Exception:
             return ""
 
-    def _phonemize_ja(self, reading: str) -> str:
-        """IPA for a Japanese morpheme via espeak-ng `ja`.
+    def _phonemize_ja(self, kana: str) -> str:
+        """IPA for a Japanese morpheme from its kana pronunciation.
 
-        espeak's `ja` voice mis-reads kanji, so phonemize the kana reading
-        (converted to hiragana) rather than the surface form.
+        Uses the deterministic kana→IPA table (_kana_to_ipa) rather than
+        espeak-ng's `ja` voice, which mangles long vowels (doubled instead of
+        ː), emits noisy diacritics, and — fed the citation reading — gets
+        particles wrong. The caller passes UniDic 発音 (pron) so は→ワ etc. are
+        already resolved.
         """
-        if not reading:
-            return ""
-        import jaconv
-        try:
-            return phonemize(jaconv.kata2hira(reading), language="ja", backend="espeak",
-                             strip=True, preserve_punctuation=False).strip()
-        except Exception:
-            return ""
+        return self._kana_to_ipa(kana)
     def _mfa_align(self, audio_path: str, transcript: str, lang: str = "en"):
         if not self.mfa_available:
             return None
@@ -363,6 +359,52 @@ class Aligner:
             pattern = pattern[:n]
         return {"accent": accent, "pattern": pattern}
 
+    # Hepburn for loanword combos jaconv.kana2alphabet romanizes wrong (ジェ→'jie').
+    JA_ROMA_COMBO = {
+        "シェ": "she", "ジェ": "je", "チェ": "che", "ニェ": "nye", "ヒェ": "hye",
+        "ティ": "ti", "ディ": "di", "トゥ": "tu", "ドゥ": "du",
+        "テュ": "tyu", "デュ": "dyu",
+        "ファ": "fa", "フィ": "fi", "フェ": "fe", "フォ": "fo", "フュ": "fyu",
+        "ウィ": "wi", "ウェ": "we", "ウォ": "wo", "イェ": "ye",
+        "ツァ": "tsa", "ツィ": "tsi", "ツェ": "tse", "ツォ": "tso",
+        "ヴ": "vu", "ヴァ": "va", "ヴィ": "vi", "ヴェ": "ve", "ヴォ": "vo",
+    }
+
+    @classmethod
+    def _mora_roma(cls, mora: str) -> str:
+        return cls.JA_ROMA_COMBO.get(mora) or cls._ja_romaji(mora)
+
+    @classmethod
+    def _ja_mora_pitch(cls, kana: str, a_type) -> list[dict] | None:
+        """Per-mora Hepburn romaji + pitch (H/L) for the learner-facing display.
+
+        Built from UniDic 発音 so particles read correctly (は→wa). ー repeats
+        the previous vowel, ッ shows the geminated onset, ン is 'n' — each keeps
+        its own mora slot so the pitch overline aligns to the romaji.
+        """
+        if not kana:
+            return None
+        import jaconv
+        morae = cls._ja_mora(jaconv.hira2kata(kana))
+        if not morae:
+            return None
+        pa = cls._ja_pitch_accent(morae, a_type)
+        pattern = pa["pattern"] if pa else None
+        base = [cls._mora_roma(m) if m not in ("ー", "ッ") else "" for m in morae]
+        out = []
+        for i, m in enumerate(morae):
+            if m == "ー":                       # long vowel: repeat prev vowel
+                prev = out[-1]["r"] if out else ""
+                r = prev[-1] if prev else ""
+            elif m == "ッ":                      # sokuon: double next onset
+                nxt = base[i + 1] if i + 1 < len(base) else ""
+                r = nxt[0] if nxt and nxt[0] not in "aeiou" else ""
+            else:
+                r = base[i]
+            out.append({"r": r,
+                        "h": bool(pattern and i < len(pattern) and pattern[i] == "H")})
+        return out
+
     @classmethod
     def _ja_mora(cls, kana: str) -> list[str]:
         """Split a katakana reading into mora (small kana attach to the base)."""
@@ -373,6 +415,152 @@ class Aligner:
             else:
                 out.append(ch)
         return out
+
+    # Katakana mora → narrow IPA, consistent with the project's transcription
+    # style (ɯᵝ compressed /u/, ɕ/dʑ/tɕ, ç/ɸ, ɽ flap, e/o lowered mids). Built
+    # from UniDic 発音, so it already encodes contextual readings; long vowels
+    # (ー) and geminates (ッ) are handled in _kana_to_ipa, not here.
+    MORA_IPA = {
+        "ア": "a", "イ": "i", "ウ": "ɯᵝ", "エ": "e", "オ": "o",
+        "カ": "ka", "キ": "ki", "ク": "kɯᵝ", "ケ": "ke", "コ": "ko",
+        "キャ": "kja", "キュ": "kjɯᵝ", "キョ": "kjo", "キェ": "kje",
+        "ガ": "ɡa", "ギ": "ɡi", "グ": "ɡɯᵝ", "ゲ": "ɡe", "ゴ": "ɡo",
+        "ギャ": "ɡja", "ギュ": "ɡjɯᵝ", "ギョ": "ɡjo",
+        "サ": "sa", "シ": "ɕi", "ス": "sɯᵝ", "セ": "se", "ソ": "so",
+        "シャ": "ɕa", "シュ": "ɕɯᵝ", "ショ": "ɕo", "シェ": "ɕe",
+        "ザ": "za", "ジ": "dʑi", "ズ": "zɯᵝ", "ゼ": "ze", "ゾ": "zo",
+        "ジャ": "dʑa", "ジュ": "dʑɯᵝ", "ジョ": "dʑo", "ジェ": "dʑe",
+        "タ": "ta", "チ": "tɕi", "ツ": "tsɯᵝ", "テ": "te", "ト": "to",
+        "チャ": "tɕa", "チュ": "tɕɯᵝ", "チョ": "tɕo", "チェ": "tɕe",
+        "ツァ": "tsa", "ツィ": "tsi", "ツェ": "tse", "ツォ": "tso",
+        "ティ": "ti", "トゥ": "tɯᵝ", "テュ": "tjɯᵝ",
+        "ダ": "da", "ヂ": "dʑi", "ヅ": "zɯᵝ", "デ": "de", "ド": "do",
+        "ディ": "di", "ドゥ": "dɯᵝ", "デュ": "djɯᵝ",
+        "ナ": "na", "ニ": "ɲi", "ヌ": "nɯᵝ", "ネ": "ne", "ノ": "no",
+        "ニャ": "ɲa", "ニュ": "ɲɯᵝ", "ニョ": "ɲo", "ニェ": "ɲe",
+        "ハ": "ha", "ヒ": "çi", "フ": "ɸɯᵝ", "ヘ": "he", "ホ": "ho",
+        "ヒャ": "ça", "ヒュ": "çɯᵝ", "ヒョ": "ço",
+        "ファ": "ɸa", "フィ": "ɸi", "フェ": "ɸe", "フォ": "ɸo", "フュ": "ɸjɯᵝ",
+        "バ": "ba", "ビ": "bi", "ブ": "bɯᵝ", "ベ": "be", "ボ": "bo",
+        "ビャ": "bja", "ビュ": "bjɯᵝ", "ビョ": "bjo",
+        "パ": "pa", "ピ": "pi", "プ": "pɯᵝ", "ペ": "pe", "ポ": "po",
+        "ピャ": "pja", "ピュ": "pjɯᵝ", "ピョ": "pjo",
+        "マ": "ma", "ミ": "mi", "ム": "mɯᵝ", "メ": "me", "モ": "mo",
+        "ミャ": "mja", "ミュ": "mjɯᵝ", "ミョ": "mjo",
+        "ヤ": "ja", "ユ": "jɯᵝ", "ヨ": "jo",
+        "ラ": "ɽa", "リ": "ɽi", "ル": "ɽɯᵝ", "レ": "ɽe", "ロ": "ɽo",
+        "リャ": "ɽja", "リュ": "ɽjɯᵝ", "リョ": "ɽjo",
+        "ワ": "wa", "ヰ": "wi", "ヱ": "we", "ヲ": "o", "ン": "ɴ",
+        "ウィ": "wi", "ウェ": "we", "ウォ": "wo",
+        "ヴ": "vɯᵝ", "ヴァ": "va", "ヴィ": "vi", "ヴェ": "ve", "ヴォ": "vo",
+    }
+    # Consonant onsets that a sokuon (ッ) geminates by doubling the first segment.
+    _JA_GEMINABLE = set("kɡsztcdnhçɸbpmɽwvɕ")
+
+    # Split a JA IPA string into display phonemes: affricates stay whole, a
+    # vowel keeps its diacritics + length mark, geminates remain two units.
+    _JA_PHON_RE = re.compile(
+        r"ts|tɕ|dʑ"                                # affricates (one unit)
+        r"|[aiɯeo](?:[̀-ͯ]|ᵝ)*ː?"        # vowel + diacritics + length
+        r"|[pbtdkɡszɕçɸhmnɲŋɴɽɾjwv]"               # single consonants
+    )
+
+    @classmethod
+    def _ja_split_phonemes(cls, ipa: str) -> list[str]:
+        return cls._JA_PHON_RE.findall(ipa) if ipa else []
+
+    @classmethod
+    def _ja_even_phonemes(cls, ipa: str, start: float, end: float) -> list[dict]:
+        """Citation phonemes for a JA word, spread evenly across [start, end].
+
+        The citation form is a normative pronunciation, not what was said, so
+        sub-word timing is inherently synthetic — even distribution over the
+        MFA-aligned word span is both honest and keeps the exact IPA (length
+        marks, geminates, diacritics) that the wav2vec2 aligner would mangle.
+        """
+        segs = cls._ja_split_phonemes(ipa)
+        if not segs:
+            return []
+        step = (end - start) / len(segs)
+        return [{"p": p,
+                 "start": round(start + i * step, 3),
+                 "end": round(start + (i + 1) * step, 3)}
+                for i, p in enumerate(segs)]
+
+    @classmethod
+    def _mora_ipa(cls, mora: str) -> str:
+        if mora in cls.MORA_IPA:
+            return cls.MORA_IPA[mora]
+        # Unknown combo (rare loanword cluster): approximate as base + small kana.
+        if len(mora) > 1 and mora[0] in cls.MORA_IPA:
+            return cls.MORA_IPA[mora[0]] + cls.MORA_IPA.get(mora[1:], "")
+        return ""
+
+    @staticmethod
+    def _nasal_realization(seq: list, i: int) -> str:
+        """Place-assimilated realization of the moraic nasal ン at seq[i].
+
+        [m] before labials, [ŋ] before velars, [n] before coronals, else [ɴ]
+        (before a vowel/approximant or phrase-finally).
+        """
+        nxt = next((s[1] for s in seq[i + 1:] if s[0] == "v"), None)
+        if not nxt:
+            return "ɴ"
+        c = nxt[0]
+        if c in "pbm":
+            return "m"
+        if c in "kɡ":
+            return "ŋ"
+        if c in "tdnszɕɽ":
+            return "n"
+        return "ɴ"
+
+    @classmethod
+    def _kana_to_ipa(cls, kana: str) -> str:
+        """Convert a katakana reading (ideally UniDic 発音) to narrow IPA.
+
+        Deterministic and reference-quality, unlike espeak-ng's `ja` voice:
+        long vowels (ー) become a length mark, geminates (ッ) double the next
+        onset, and the moraic nasal (ン) assimilates to the following place.
+        """
+        if not kana:
+            return ""
+        import jaconv
+        morae = cls._ja_mora(jaconv.hira2kata(kana))
+        # Pass 1: classify each mora (ordinary syllable vs. the three specials).
+        seq: list = []  # ('v', ipa) | ('long',) | ('soku',) | ('nasal',)
+        for mora in morae:
+            if mora == "ー":
+                seq.append(("long",))
+            elif mora == "ッ":
+                seq.append(("soku",))
+            elif mora == "ン":
+                seq.append(("nasal",))
+            else:
+                ipa = cls._mora_ipa(mora)
+                if ipa:
+                    seq.append(("v", ipa))
+        # Pass 2: emit, resolving gemination / lengthening / nasal from context.
+        out: list[str] = []
+        geminate = False
+        for i, item in enumerate(seq):
+            kind = item[0]
+            if kind == "long":
+                if out:
+                    out[-1] += "ː"
+                geminate = False
+            elif kind == "soku":
+                geminate = True
+            elif kind == "nasal":
+                out.append(cls._nasal_realization(seq, i))
+                geminate = False
+            else:  # ordinary syllable
+                ipa = item[1]
+                if geminate and ipa[0] in cls._JA_GEMINABLE:
+                    ipa = ipa[0] + ipa
+                geminate = False
+                out.append(ipa)
+        return "".join(out)
 
     def _tokenize_ja(self, transcript: str) -> list[dict]:
         """Segment a Japanese transcript into morpheme tokens (MeCab/UniDic).
@@ -396,12 +584,18 @@ class Aligner:
             if pos1 in ("補助記号", "空白"):
                 continue
             reading = getattr(f, "kana", None) or None
+            # UniDic 発音 (pron) is the *contextual* pronunciation, not the
+            # citation reading: particle は→ワ, を→オ, へ→エ, long vowels as ー,
+            # geminates kept. The IPA is derived from this; furigana/romaji keep
+            # the citation `reading` (a learner expects は's furigana to be は).
+            pron = getattr(f, "pron", None) or None
             lemma = getattr(f, "lemma", None) or None
             if lemma:
                 lemma = lemma.split("-")[0]  # UniDic appends '-tower', '-代名詞' etc.
             out.append({
                 "surface": surface,
                 "reading": reading,
+                "pron": pron,
                 "romaji": self._ja_romaji(reading) if reading else None,
                 "mora": self._ja_mora(reading) if reading else None,
                 "pos": pos1 or None,
@@ -554,11 +748,13 @@ class Aligner:
         def _citation_phonemes(tok):
             if lang == "ja":
                 jf = ja_features.get(Aligner._lex_key(tok)) or {}
-                reading = jf.get("reading")
-                if reading:
-                    return self._phonemize_ja(reading), {
-                        "source": "espeak-ja", "confidence": "reading"}
-                return "", {"source": "espeak-ja", "confidence": "no-reading"}
+                # Prefer 発音 (contextual pronunciation) over the citation reading.
+                kana = jf.get("pron") or jf.get("reading")
+                if kana:
+                    conf = "pron" if jf.get("pron") else "reading"
+                    return self._phonemize_ja(kana), {
+                        "source": "unidic-kana", "confidence": conf}
+                return "", {"source": "unidic-kana", "confidence": "no-reading"}
             num_words = _number_words(tok)
             if num_words:
                 pieces = [self._phonemize_word(nw) for nw in num_words]
@@ -664,11 +860,18 @@ class Aligner:
                           "phonemes": [], "phonemes_canonical": []})
                 continue
             phs_audio = greedy_in_range(f_start, f_end)
-            phs_canon = canon_for_word(target_tokens[s:e], f_start, f_end)
-            stresses = target_stresses[s:e]
-            for ph, st in zip(phs_canon, stresses):
-                if st:
-                    ph["stress"] = st
+            if lang == "ja":
+                # Citation phonemes split from the clean IPA, evenly timed —
+                # bypasses the English-trained CTC aligner that drops ː and
+                # collapses geminates.
+                phs_canon = self._ja_even_phonemes(
+                    word_phonemes_str[w_idx], w["start"], w["end"])
+            else:
+                phs_canon = canon_for_word(target_tokens[s:e], f_start, f_end)
+                stresses = target_stresses[s:e]
+                for ph, st in zip(phs_canon, stresses):
+                    if st:
+                        ph["stress"] = st
             w["ipa"] = "".join(p["p"] for p in phs_audio)
             w["ipa_canonical"] = word_phonemes_str[w_idx]
             w["ipa_citation_meta"] = word_citation_meta[w_idx]
@@ -738,6 +941,9 @@ class Aligner:
                     ent["pitch_accent"] = (
                         Aligner._ja_pitch_accent(jf.get("mora"), jf.get("a_type"))
                         if jf.get("mora") else None)
+                    # Learner-facing romaji + pitch, from 発音 (contextual).
+                    ent["mora_pitch"] = Aligner._ja_mora_pitch(
+                        jf.get("pron") or jf.get("reading"), jf.get("a_type"))
                     ent["furigana"] = [
                         {"text": t, "ruby": ru}
                         for t, ru in ja_dict.furigana_spans(w["word"], jf.get("reading"))
