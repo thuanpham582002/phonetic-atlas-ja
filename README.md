@@ -141,10 +141,12 @@ add it to the appropriate layer.
 
 ## Caching & reprocessing
 
-Each run is cached to `data/<sid>/words.json`, where `sid` hashes the audio +
-transcript + `ALIGNER_VERSION` + effective acronym map. Cached sessions
-**persist across server/container restarts** (`./data` is volume-mounted) and
-are *not* recomputed on restart — a cache hit is served directly.
+Each run is cached next to its inputs at `samples/<slug>/words.json`, paired
+with `samples/<slug>/manifest.json` holding the input fingerprint (hash of
+audio + transcript + `ALIGNER_VERSION` + `lang` + acronyms + enrichment).
+`sid = slug` — no opaque hash directories. On load the server compares the
+manifest fingerprint to a fresh one; a stale cache is still served but flagged
+`stale: true` in `/api/sample-session`.
 
 To regenerate after an aligner or acronym change without editing inputs, run
 the sample preprocess CLI:
@@ -154,11 +156,10 @@ python3 scripts/process_samples.py sample-slug --force
 python3 scripts/process_samples.py --force  # all samples
 ```
 
-You can manually edit `data/<sid>/words.json` when you need to correct IPA or
-timed phonemes for the player. The UI reads that file directly. Treat it as a
-cache, not durable source: a later `python3 scripts/process_samples.py <slug>
---force` run overwrites it. If you edit timed phoneme arrays, keep `start` /
-`end` values consistent because the player uses them for highlighting.
+Treat `samples/<slug>/words.json` as a **cache, not a durable source**: a later
+`python3 scripts/process_samples.py <slug> --force` run overwrites it. To make a
+durable correction (gloss/POS/definition), edit `enrichment.json` instead — it
+re-applies on every process. Never hot-patch `words.json` directly.
 
 > **Restart `server.py` after any `aligner.py`/`server.py` change or
 > `ALIGNER_VERSION` bump.** The running process holds the old code and the
@@ -191,15 +192,16 @@ aligner has run — so adding a sample is a two-pass flow:
    `acronyms.json`).
 2. Process once to generate the lexicon:
    `python3 scripts/process_samples.py <slug>`. This writes
-   `data/<sid>/words.json`.
+   `samples/<slug>/words.json`.
 3. Write `samples/<slug>/enrichment.json` keyed against the lexicon keys in
    that `words.json`: `{"lexemes": {"<key>": {"gloss","pos","definition",
    "definition_gloss","note"}}, "sentences": {"<i>": {"gloss","note"}}}`.
 4. Reprocess with `python3 scripts/process_samples.py <slug> --force`; the CLI
    merges `enrichment.json` onto the fresh result. Confirm every
    lexeme/sentence is glossed.
-5. Commit `samples/<slug>/` — audio, transcript and the JSON files are all
-   tracked; only `data/` is gitignored.
+5. Commit `samples/<slug>/` — audio, transcript, `meta.json`, `acronyms.json`,
+   and `enrichment.json` are tracked; the derived `words.json` + `manifest.json`
+   are gitignored and regenerated on process.
 
 `enrichment.json` is the durable source of truth and re-applies on *every*
 process: a later CLI `--force` run (same audio/transcript/`ALIGNER_VERSION`/
