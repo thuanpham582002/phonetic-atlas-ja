@@ -13,6 +13,7 @@ export interface Word {
   ipa_canonical?: string;
   phonemes?: Phoneme[];
   phonemes_canonical?: Phoneme[];
+  mora_pitch?: { r: string; h: boolean }[] | null;
   f0_norm?: (number | null)[];
   f0_trace?: (number | null)[];
   stress?: boolean;

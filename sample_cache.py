@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 SAMPLES = ROOT / "samples"
 
-ALIGNER_VERSION = "v22-ja-mfa-ctc-align"
+ALIGNER_VERSION = "v24-ja-kana-ipa-no-combining"
 ACRONYMS_FILE = Path(os.environ.get("ACRONYMS_FILE", str(ROOT / "acronyms.json")))
 AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".ogg")
 

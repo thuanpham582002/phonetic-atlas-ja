@@ -633,7 +633,9 @@ audio::-webkit-media-controls-panel { background: var(--surface); }
 .w.filler .word-text { color: var(--faint); font-style: italic; }
 .ipa {
   display: block;
-  font-family: var(--serif);
+  /* Must be the IPA stack, not --serif: Japanese combining diacritics
+     (e̞, o̞, ɯᵝ, dʑ) tofu in a plain serif. */
+  font-family: var(--ipa);
   line-height: 1.25;
   font-feature-settings: "ss01";
 }
@@ -652,6 +654,38 @@ audio::-webkit-media-controls-panel { background: var(--surface); }
 }
 body.hide-canon .ipa-canon { display: none; }
 body.no-ipa .ipa { display: none; }
+
+/* Japanese learner line: Hepburn romaji with a pitch overline on the high
+   morae (standard Tokyo-accent notation) and a downstep tick at the nucleus.
+   The IPA/citation/simplify chips only affect the IPA layers, which ja shows
+   in the dictionary card instead, so hide them here. */
+.ja-romaji {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--mute);
+  margin-top: 4px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.ja-romaji .mora {
+  display: inline-block;
+  padding-top: 1px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background .08s, color .08s;
+}
+.ja-romaji .mora.hi { border-top: 1.5px solid var(--indigo); }
+.ja-romaji .mora.drop { border-right: 1.5px solid var(--indigo); padding-right: 1px; }
+.ja-romaji .mora.active { background: var(--indigo); color: var(--bg); }
+body.no-romaji .ja-romaji { display: none; }
+/* The IPA/citation/simplify chips only act on the IPA layers (in the dict card
+   for ja); the 'romaji' chip is ja-only. Swap them by language. */
+body.lang-ja #chip-ipa,
+body.lang-ja #chip-simple,
+body.lang-ja #chip-canon { display: none; }
+body:not(.lang-ja) #chip-romaji { display: none; }
+
 body.no-tone .contour { display: none; }
 body.no-pause .pause { display: none; }
 
@@ -764,6 +798,10 @@ body.has-recording .chip-rec { color: var(--accent); }
 }
 .swatch.audio { background: var(--accent); }
 .swatch.canon { background: var(--indigo); }
+/* Legend swaps to a single citation entry for Japanese (no audio layer). */
+body.lang-ja .legend .lg-en { display: none; }
+body:not(.lang-ja) .legend .lg-ja { display: none; }
+.lg-pitch-mark { color: var(--indigo); font-weight: 700; }
 
 .shortcuts {
   margin-top: 28px;

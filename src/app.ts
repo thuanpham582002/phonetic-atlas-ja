@@ -3,6 +3,7 @@
 const __params = new URLSearchParams(location.search);
 const __view = __params.get('view');
 const __focus = (__params.get('focus') || '').trim().toLowerCase();
+const __sample = (__params.get('sample') || '').trim();
 if (__view === 'overlay') {
   import('./overlay').then(m => m.initOverlay());
 }
@@ -81,6 +82,34 @@ fetch('/api/samples').then(r => {
   }
   previewAudio.addEventListener('ended', stopPreview);
 
+  // Load a sample by id: select its card, fetch its session, enter drill mode.
+  // Shared by card clicks and the ?sample=<id> deep-link.
+  async function loadSample(id: string) {
+    const sample = samples.find((s: any) => s.id === id);
+    if (!sample) {
+      setSamplesStatus(`no sample “${id}”`, true);
+      return;
+    }
+    const card = $$('.sample').find((c: any) => c.dataset.id === id) || null;
+    stopPreview();
+    selectedSample = id;
+    $$('.sample').forEach((c: any) => c.classList.toggle('selected', c === card));
+    const dur = sample.duration ? Math.round(sample.duration) + 's' : '';
+    const metaBits = [sample.level, dur, sample.description].filter(Boolean);
+    currentSetup = { title: sample.title, meta: metaBits.join(' · ') };
+    card?.scrollIntoView({ block: 'center' });
+    setSamplesStatus('loading…');
+    try {
+      const r = await fetch(`/api/sample-session/${encodeURIComponent(sample.id)}`);
+      if (!r.ok) throw new Error(r.status === 404 ? 'sample has not been preprocessed' : 'HTTP ' + r.status);
+      await player.loadPlayer(await r.json());
+      setSamplesStatus('loaded');
+      enterDrillMode();
+    } catch (err) {
+      setSamplesStatus((err as Error).message, true);
+    }
+  }
+
   root.addEventListener('click', async (e: Event) => {
     const target = e.target as HTMLElement;
     const previewBtn = target.closest('.preview-btn') as HTMLElement | null;
@@ -100,27 +129,11 @@ fetch('/api/samples').then(r => {
     }
     const card = target.closest('.sample') as HTMLElement | null;
     if (!card) return;
-    stopPreview();
-    selectedSample = card.dataset.id || null;
-    $$('.sample').forEach(c => c.classList.toggle('selected', c === card));
-    const sample = samples.find((s: any) => s.id === selectedSample);
-    if (sample) {
-      const dur = sample.duration ? Math.round(sample.duration) + 's' : '';
-      const metaBits = [sample.level, dur, sample.description].filter(Boolean);
-      currentSetup = { title: sample.title, meta: metaBits.join(' · ') };
-    }
-    if (!sample) return;
-    setSamplesStatus('loading…');
-    try {
-      const r = await fetch(`/api/sample-session/${encodeURIComponent(sample.id)}`);
-      if (!r.ok) throw new Error(r.status === 404 ? 'sample has not been preprocessed' : 'HTTP ' + r.status);
-      await player.loadPlayer(await r.json());
-      setSamplesStatus('loaded');
-      enterDrillMode();
-    } catch (err) {
-      setSamplesStatus((err as Error).message, true);
-    }
+    await loadSample(card.dataset.id || '');
   });
+
+  // ?sample=<id> → auto-load that sample straight into the player on boot.
+  if (__sample) loadSample(__sample);
 });
 
 const audioEl = $('#audio') as HTMLAudioElement;
@@ -136,11 +149,13 @@ const simpleIpaEl = $('#simpleIpa') as HTMLInputElement;
 const showCanonEl = $('#showCanon') as HTMLInputElement;
 const showToneEl = $('#showTone') as HTMLInputElement;
 const showPauseEl = $('#showPause') as HTMLInputElement;
+const showRomajiEl = $('#showRomaji') as HTMLInputElement;
 const statusEl = $('#status') as HTMLElement;
 const playerWrapEl = $('#player-wrap') as HTMLElement;
 
-const SETTINGS_KEY = 'phonetic_atlas_settings_v1';
-const persisted = ['loopWord', 'delay', 'repeats', 'speed', 'follow', 'showIpa', 'simpleIpa', 'showCanon', 'showTone', 'showPause'];
+// v2: citation IPA is shown by default now (the audio-derived layer is lossy).
+const SETTINGS_KEY = 'phonetic_atlas_settings_v2';
+const persisted = ['loopWord', 'delay', 'repeats', 'speed', 'follow', 'showIpa', 'simpleIpa', 'showCanon', 'showTone', 'showPause', 'showRomaji'];
 
 function saveSettings() {
   const s: Record<string, string | boolean> = {};
@@ -173,15 +188,17 @@ function syncChips() {
     'chip-canon': showCanonEl,
     'chip-tone': showToneEl,
     'chip-pause': showPauseEl,
+    'chip-romaji': showRomajiEl,
   };
   for (const [chipId, input] of Object.entries(map)) {
     $('#' + chipId).classList.toggle('on', input.checked);
   }
   document.body.classList.toggle('no-tone', !showToneEl.checked);
   document.body.classList.toggle('no-pause', !showPauseEl.checked);
+  document.body.classList.toggle('no-romaji', !showRomajiEl.checked);
 }
 syncChips();
-['loopWord', 'follow', 'showIpa', 'simpleIpa', 'showCanon', 'showTone', 'showPause'].forEach(id =>
+['loopWord', 'follow', 'showIpa', 'simpleIpa', 'showCanon', 'showTone', 'showPause', 'showRomaji'].forEach(id =>
   document.getElementById(id)!.addEventListener('change', syncChips));
 
 let dict: DictApi;
